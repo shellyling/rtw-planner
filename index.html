@@ -18,7 +18,6 @@
   --violet:#8F84F2; --rose:#E28AC2; --lavender:#BCADE9;
   --ok:#62E3B6; --bad:#FF7E9F; --todo:#F3CF73; --ok-bg:#0C2A38; --bad-bg:#2C0F33; --todo-bg:#2A2418;
   --globe-sea:#070B33; --globe-sea-hi:#2C3AB8; --globe-land:#4248A8; --globe-grid:rgba(188,173,233,.10); --globe-glow:rgba(85,220,247,.38); --globe-shade:rgba(2,3,16,.58);
-  --ring-a:#55DCF7; --ring-b:#8F84F2; --ring-c:#F3CF73;
   --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
   --f-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
   --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
@@ -66,6 +65,19 @@ header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:spac
 .seg .no .grip{font-size:13px;letter-spacing:-2px;opacity:.7;line-height:1}
 .seg .no:focus-visible{outline:2px solid var(--ink);outline-offset:-4px}
 .seg{transition:transform .18s ease}
+.seg.flying{box-shadow:0 0 0 1px var(--amber),0 0 22px -6px var(--amber)}
+.seg.flying .no{background:linear-gradient(180deg,var(--amber),var(--rose))}
+.fl-bar{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.fl-bar[hidden]{display:none}
+.fl-prog{height:4px;border-radius:999px;background:var(--surface-2);overflow:hidden}
+.fl-prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--amber),var(--rose));border-radius:999px}
+.fl-row{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;justify-content:space-between}
+.fl-cap{font-size:13.5px;min-height:20px}
+.fl-cap b{font-family:var(--f-display);font-size:16px;letter-spacing:.03em}
+.fl-ctl{display:inline-flex;gap:6px;align-items:center}
+.fl-ctl .btn{font-size:12.5px;padding:3px 10px}
+.fl-spd{display:inline-flex;gap:4px;align-items:center;font-size:12px;color:var(--muted)}
+.fl-spd select{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:2px 4px;font-size:12.5px;color:var(--ink)}
 .seg.dragging{transition:none;z-index:50;box-shadow:0 18px 40px -10px rgba(0,0,0,.8),0 0 0 1px var(--teal)}
 .segs.is-dragging .seg:not(.dragging){pointer-events:none}
 .cb input[readonly]{background:transparent;border-style:dashed;cursor:default;color:var(--muted)}
@@ -495,9 +507,16 @@ body:not([data-tab="plan"]) .mini,body:not([data-tab="plan"]) header.top .chips{
           <span class="seg-toggle" role="radiogroup" aria-label="地圖樣式">
             <input type="radio" name="mapmode" id="mode-globe" value="globe" checked><label for="mode-globe">3D 地球</label>
             <input type="radio" name="mapmode" id="mode-flat" value="flat"><label for="mode-flat">平面地圖</label></span></div>
-        <div class="map-tools"><div class="chips"><button class="btn" id="homeBtn" type="button">回到出發地</button><button class="btn" id="spinBtn" type="button" aria-pressed="true">暫停旋轉</button></div>
+        <div class="map-tools"><div class="chips"><button class="btn" id="homeBtn" type="button">回到出發地</button><button class="btn" id="spinBtn" type="button" aria-pressed="true">暫停旋轉</button><button class="btn primary" id="flyBtn" type="button">✈ 播放飛行</button></div>
           <div class="zoom" role="group" aria-label="縮放"><button type="button" id="zoomOut" aria-label="縮小">−</button><button type="button" id="zoomReset" aria-label="重設大小" style="font-size:12.5px;width:auto;padding-inline:10px;border-radius:999px">1×</button><button type="button" id="zoomIn" aria-label="放大">+</button></div></div>
         <div class="globe-wrap" id="globeWrap"><canvas id="globe" tabindex="0" role="img" aria-label="行程路線地圖，可拖曳移動、滾輪或雙指縮放，鍵盤用方向鍵與加減號"></canvas></div>
+        <div class="fl-bar" id="flBar" hidden>
+          <div class="fl-prog" aria-hidden="true"><i id="flProg"></i></div>
+          <div class="fl-row"><span class="fl-cap" id="flCap" aria-live="polite"></span>
+            <span class="fl-ctl"><button class="btn" id="flRestart" type="button" aria-label="從頭播放">↺ 重來</button>
+              <label class="fl-spd">速度<select id="flSpeed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select></label>
+              <button class="btn ghost" id="flStop" type="button">結束</button></span></div>
+        </div>
         <div class="mapnote" id="mapnote">拖曳可以轉動或移動，滾輪或雙指可以放大縮小（鍵盤用方向鍵與 +／−）。實線是航班，虛線是自己走陸路的開口段，大圓點是出發地。</div>
       </section>
     </aside>
@@ -649,7 +668,7 @@ body:not([data-tab="plan"]) .mini,body:not([data-tab="plan"]) header.top .chips{
 
   <footer>
     本工具非國泰航空官方工具。機場清單是 16 家寰宇一家成員目前有飛的 880 個機場，整理自維基百科各航空公司航點列表與維基數據（2026 年 10 月）；直飛航線整理自公開的 <a href="https://github.com/Jonty/airline-route-data" target="_blank" rel="noopener">airline-route-data</a> 資料集（<span id="routesDate">每週自動更新</span>），可能漏掉季節班或剛開的新航線。級距表與規則整理自公開資料（2026 年 10 月整理），陸路段的距離在這裡不計入飛行距離；實際里數、可兌換的航空公司與規則以
-    <a href="https://www.cathaypacific.com/" target="_blank" rel="noopener">國泰航空官網</a> 及客服為準。查空位請到官網的「以里數兌換」頁面逐段搜尋。距離以大圓距離估算，與官方數字可能有幾哩差異。
+    <a href="https://www.cathaypacific.com/" target="_blank" rel="noopener">國泰航空官網</a> 及客服為準。查空位請到官網的「以里數兌換」頁面逐段搜尋。距離以大圓距離估算，與官方數字可能有幾哩差異。地球夜景影像：NASA Earth Observatory「Earth's City Lights」。
   </footer>
 </div>
 
@@ -950,7 +969,7 @@ function decodeWorld(json){
   if(d3.geoArea(feat)>2*Math.PI){const rev=r=>r.slice().reverse();feat.geometry.coordinates=g.type==="Polygon"?coords.map(rev):coords.map(p=>p.map(rev))}
   return feat});
 }
-function globeFail(){const w=document.getElementById("globeWrap");if(w)w.hidden=true;["homeBtn","spinBtn"].forEach(id=>{const b=document.getElementById(id);if(b)b.hidden=true});document.querySelectorAll('[aria-label="地圖樣式"]').forEach(x=>x.hidden=true);document.getElementById("mapnote").textContent="地球儀暫時無法載入，其他功能不受影響。"}
+function globeFail(){const w=document.getElementById("globeWrap");if(w)w.hidden=true;["homeBtn","spinBtn","flyBtn"].forEach(id=>{const b=document.getElementById(id);if(b)b.hidden=true});document.querySelectorAll('[aria-label="地圖樣式"]').forEach(x=>x.hidden=true);document.getElementById("mapnote").textContent="地球儀暫時無法載入，其他功能不受影響。"}
 const ZMIN={globe:.7,flat:1},ZMAX={globe:5,flat:6};
 function flatProj(ty){const w=G.size,h=G.h;const base=d3.geoNaturalEarth1().fitSize([w,h],{type:"Sphere"});
  return d3.geoNaturalEarth1().scale(base.scale()*G.zoom).translate([w/2,h/2+(ty===undefined?G.ty:ty)]).rotate([G.rot[0],0]).precision(.4)}
@@ -960,7 +979,7 @@ function centerOn(c,ms=900){const A=AP[c];if(!A)return;
  else{const p=flatProj(0);p.rotate([-A.lon,0]);const y=p([A.lon,A.lat])[1];to=[-A.lon,0,G.h/2-y]}
  if(reduceMotion||!ms){G.rot=[to[0],to[1]];G.ty=to[2];clampTy();G.dirty=true;return}
  const from=[G.rot[0],G.rot[1],G.ty];const d0=((to[0]-from[0])%360+540)%360-180;G.anim={t0:performance.now(),ms,from,to:[from[0]+d0,to[1],to[2]]}}
-function setSpin(on){G.spin=on&&!reduceMotion&&G.mode==="globe";const b=document.getElementById("spinBtn");if(b){b.hidden=G.mode!=="globe";b.setAttribute("aria-pressed",String(G.spin));b.textContent=G.spin?"暫停旋轉":"自動旋轉"}}
+function setSpin(on){G.spin=on&&!reduceMotion&&G.mode==="globe"&&!FL.on;const b=document.getElementById("spinBtn");if(b){b.hidden=G.mode!=="globe";b.setAttribute("aria-pressed",String(G.spin));b.textContent=G.spin?"暫停旋轉":"自動旋轉"}}
 function setZoom(z){G.zoom=Math.max(ZMIN[G.mode],Math.min(ZMAX[G.mode],z));clampTy();G.dirty=true;
  const zi=document.getElementById("zoomIn"),zo=document.getElementById("zoomOut"),zr=document.getElementById("zoomReset");
  if(zi)zi.disabled=G.zoom>=ZMAX[G.mode]-1e-6;if(zo)zo.disabled=G.zoom<=ZMIN[G.mode]+1e-6;if(zr)zr.textContent=(Math.round(G.zoom*10)/10)+"×"}
@@ -980,7 +999,7 @@ function initGlobe(){
  G.fit();try{new ResizeObserver(()=>G.fit()).observe(G.cv.parentElement)}catch(e){window.addEventListener("resize",()=>G.fit())}
  try{new IntersectionObserver(es=>{G.visible=es[0].isIntersecting}).observe(G.cv)}catch(e){}
  const cv=G.cv;
- cv.addEventListener("pointerdown",e=>{G.pts.set(e.pointerId,{x:e.clientX,y:e.clientY});G.anim=null;setSpin(false);try{cv.setPointerCapture(e.pointerId)}catch(_){}
+ cv.addEventListener("pointerdown",e=>{G.pts.set(e.pointerId,{x:e.clientX,y:e.clientY});G.anim=null;setSpin(false);FL.follow=false;try{cv.setPointerCapture(e.pointerId)}catch(_){}
   if(G.pts.size===2){const [a,b]=[...G.pts.values()];G.pinch={d:Math.hypot(a.x-b.x,a.y-b.y),z:G.zoom};G.drag=null}else G.drag={x:e.clientX,y:e.clientY}});
  cv.addEventListener("pointermove",e=>{if(!G.pts.has(e.pointerId))return;G.pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(G.pinch&&G.pts.size>=2){const [a,b]=[...G.pts.values()];const d=Math.hypot(a.x-b.x,a.y-b.y);if(G.pinch.d>0)setZoom(G.pinch.z*d/G.pinch.d);return}
@@ -996,6 +1015,10 @@ function initGlobe(){
  document.getElementById("zoomOut").addEventListener("click",()=>setZoom(G.zoom/1.4));
  document.getElementById("zoomReset").addEventListener("click",()=>{setZoom(1);G.ty=0;const f=state.segs[0];if(f&&f.from)centerOn(f.from)});
  document.getElementById("spinBtn").addEventListener("click",()=>setSpin(!G.spin));
+ document.getElementById("flyBtn").addEventListener("click",()=>{FL.playing?flPause():flStart(false)});
+ document.getElementById("flRestart").addEventListener("click",()=>flStart(true));
+ document.getElementById("flStop").addEventListener("click",flStop);
+ document.getElementById("flSpeed").addEventListener("change",e=>{FL.speed=Number(e.target.value)||1});
  document.getElementById("homeBtn").addEventListener("click",()=>{const f=state.segs[0];if(f&&f.from){setSpin(false);centerOn(f.from)}});
  document.querySelectorAll('input[name="mapmode"]').forEach(r=>r.addEventListener("change",()=>setMode(r.value)));
  setMode(state.mapMode==="flat"?"flat":"globe");
@@ -1003,6 +1026,9 @@ function initGlobe(){
 }
 function tick(t){
  const dt=G.last?Math.min(64,t-G.last):16;G.last=t;
+ if(FL.on){flStep(dt);if(FL.playing||FL.phase==="stay")G.dirty=true;
+  if(FL.follow&&!G.drag&&!G.pinch&&!G.anim){const p=flPos();if(p){const k=Math.min(1,dt*.0045);const tl=-p[0],tb=G.mode==="globe"?-Math.max(-55,Math.min(55,p[1])):0;
+   const dl=((tl-G.rot[0])%360+540)%360-180;G.rot=[G.rot[0]+dl*k,G.rot[1]+(tb-G.rot[1])*k];G.dirty=true}}}
  if(G.anim){const k=Math.min(1,(t-G.anim.t0)/G.anim.ms),e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;const A=G.anim;
   G.rot=[A.from[0]+(A.to[0]-A.from[0])*e,A.from[1]+(A.to[1]-A.from[1])*e];G.ty=A.from[2]+(A.to[2]-A.from[2])*e;clampTy();G.dirty=true;if(k>=1)G.anim=null}
  else if(G.spin&&G.mode==="globe"&&!G.drag&&!G.pinch&&G.visible&&!document.hidden){G.rot[0]+=dt*0.008/Math.max(1,G.zoom);G.dirty=true}
@@ -1011,11 +1037,13 @@ function tick(t){
 }
 function drawRoutesAndLabels(ctx,proj,path,visible){
  const pts={};ctx.lineCap="round";
- state.segs.forEach(s=>{if(!s.from||!s.to)return;const A=AP[s.from],B=AP[s.to];if(!A||!B)return;pts[s.from]=A;pts[s.to]=B;
+ state.segs.forEach((s,i)=>{if(!s.from||!s.to)return;const A=AP[s.from],B=AP[s.to];if(!A||!B)return;pts[s.from]=A;pts[s.to]=B;
+  ctx.globalAlpha=FL.on&&(i>FL.i||(i===FL.i&&FL.phase==="fly"))?.3:1;
   ctx.beginPath();path({type:"LineString",coordinates:[[A.lon,A.lat],[B.lon,B.lat]]});
   if(s.kind==="x"){ctx.setLineDash([5,5]);ctx.strokeStyle=css("--amber");ctx.lineWidth=2}else{ctx.setLineDash([]);ctx.strokeStyle=css("--teal");ctx.lineWidth=2.4}
   ctx.stroke()});
- ctx.setLineDash([]);
+ ctx.setLineDash([]);ctx.globalAlpha=1;
+ drawPlane(ctx,proj,path,visible);
  const origin=state.segs[0]&&state.segs[0].from;
  ctx.font='600 13px "Barlow Condensed","Arial Narrow",sans-serif';ctx.textBaseline="middle";
  const boxes=[];const hit=(b)=>boxes.some(o=>b.x<o.x+o.w&&b.x+b.w>o.x&&b.y<o.y+o.h&&b.y+b.h>o.y);
@@ -1037,38 +1065,128 @@ function drawGlobe(){
   ctx.beginPath();G.land.features.forEach(f=>path(f));ctx.fillStyle=css("--globe-land");ctx.fill();
   ctx.beginPath();path({type:"Sphere"});ctx.lineWidth=1;ctx.strokeStyle=css("--lavender");ctx.globalAlpha=.35;ctx.stroke();ctx.globalAlpha=1;
   drawRoutesAndLabels(ctx,proj,path,()=>true);return}
- const c=w/2,r=w*0.34*G.zoom,showRings=G.zoom<=1.2;
+ const c=w/2,r=w*0.4*G.zoom;
  const proj=d3.geoOrthographic().translate([c,c]).scale(r).rotate(G.rot).clipAngle(90).precision(.4);
  const path=d3.geoPath(proj,ctx);
  const halo=ctx.createRadialGradient(c,c,r*.92,c,c,r*1.22);halo.addColorStop(0,css("--globe-glow"));halo.addColorStop(1,"rgba(0,0,0,0)");
  ctx.beginPath();ctx.arc(c,c,r*1.22,0,Math.PI*2);ctx.fillStyle=halo;ctx.fill();
- if(showRings)drawRings(ctx,c,r,w,"back");
+ drawStars(ctx,w,h,c,r);
  const sea=ctx.createRadialGradient(c-r*.4,c-r*.45,r*.05,c,c,r);sea.addColorStop(0,css("--globe-sea-hi"));sea.addColorStop(1,css("--globe-sea"));
  ctx.beginPath();path({type:"Sphere"});ctx.fillStyle=sea;ctx.fill();
- ctx.beginPath();path(d3.geoGraticule10());ctx.strokeStyle=css("--globe-grid");ctx.lineWidth=.6;ctx.stroke();
- ctx.beginPath();G.land.features.forEach(f=>path(f));ctx.fillStyle=css("--globe-land");ctx.fill();
+ if(TEX.data){drawTexture(ctx,c,r,w,h);ctx.globalAlpha=.45}
+ else{ctx.beginPath();G.land.features.forEach(f=>path(f));ctx.fillStyle=css("--globe-land");ctx.fill()}
+ ctx.beginPath();path(d3.geoGraticule10());ctx.strokeStyle=css("--globe-grid");ctx.lineWidth=.6;ctx.stroke();ctx.globalAlpha=1;
  const shade=ctx.createRadialGradient(c-r*.3,c-r*.35,r*.3,c,c,r*1.02);shade.addColorStop(0,"rgba(0,0,0,0)");shade.addColorStop(1,css("--globe-shade"));
- ctx.beginPath();path({type:"Sphere"});ctx.fillStyle=shade;ctx.fill();
- if(showRings)drawRings(ctx,c,r,w,"front");
+ ctx.globalAlpha=TEX.data?.55:1;ctx.beginPath();path({type:"Sphere"});ctx.fillStyle=shade;ctx.fill();ctx.globalAlpha=1;
+ // thin bright atmosphere rim
+ const rim=ctx.createRadialGradient(c,c,r*.9,c,c,r*1.035);rim.addColorStop(0,"rgba(85,220,247,0)");rim.addColorStop(.82,"rgba(110,200,255,.28)");rim.addColorStop(1,"rgba(110,200,255,0)");
+ ctx.beginPath();ctx.arc(c,c,r*1.035,0,Math.PI*2);ctx.fillStyle=rim;ctx.fill();
  ctx.beginPath();ctx.arc(c,c,r,0,Math.PI*2);ctx.lineWidth=1.2;ctx.strokeStyle=css("--lavender");ctx.globalAlpha=.35;ctx.stroke();ctx.globalAlpha=1;
  const center=[-G.rot[0],-G.rot[1]];
- drawRoutesAndLabels(ctx,proj,path,A=>d3.geoDistance([A.lon,A.lat],center)<=Math.PI/2-.02);
+ const vis=A=>d3.geoDistance([A.lon,A.lat],center)<=Math.PI/2-.02;
+ drawRoutesAndLabels(ctx,proj,path,vis);
 }
-function drawRings(ctx,c,r,w,half){
- // orbital rings: tilted ellipses, back half drawn behind the globe, front half over it
- const tilt=-0.28,rings=[[1.36,.30,.55],[1.30,.285,.9],[1.22,.27,.4]];
- const g=ctx.createLinearGradient(c-r*1.4,0,c+r*1.4,0);g.addColorStop(0,css("--ring-b"));g.addColorStop(.5,css("--ring-a"));g.addColorStop(1,css("--ring-c"));
- ctx.save();ctx.translate(c,c);ctx.rotate(tilt);ctx.strokeStyle=g;
- rings.forEach(([kx,ky,a],i)=>{ctx.beginPath();
-  if(half==="back")ctx.ellipse(0,0,r*kx,r*ky,0,Math.PI,Math.PI*2);else ctx.ellipse(0,0,r*kx,r*ky,0,0,Math.PI);
-  ctx.globalAlpha=half==="back"?a*.6:Math.min(1,a*1.15);ctx.lineWidth=i===1?2:.9;ctx.shadowColor=css("--ring-a");ctx.shadowBlur=i===1?8:0;ctx.stroke();ctx.shadowBlur=0});
- // small moons riding the middle ring, moving with the globe
- const base=(G.rot[0]||0)*Math.PI/180;
- [0,2.3,4.1].forEach((o,i)=>{const t=base*.6+o;const s=Math.sin(t);if((half==="back")!==(s<0))return;
-  const x=r*1.30*Math.cos(t),y=r*.285*s;ctx.globalAlpha=1;ctx.beginPath();ctx.arc(x,y,i===0?2.6:1.8,0,Math.PI*2);ctx.fillStyle=i===0?css("--ring-c"):css("--lavender");ctx.fill()});
- ctx.restore();ctx.globalAlpha=1;
+function drawMap(){G.dirty=true;flCheck()}
+
+// ---------- night-lights photo texture on the 3D globe ----------
+// NASA Earth Observatory "Earth's City Lights" (public domain), brightened for this dark theme.
+const TEX={data:null,w:0,h:0};
+(function(){const im=new Image();im.decoding="async";
+ im.onload=()=>{try{const cv=document.createElement("canvas");cv.width=im.naturalWidth;cv.height=im.naturalHeight;const x=cv.getContext("2d");x.drawImage(im,0,0);
+  TEX.data=x.getImageData(0,0,cv.width,cv.height).data;TEX.w=cv.width;TEX.h=cv.height;G.dirty=true}catch(e){TEX.data=null}};
+ im.src="data/earth-night.jpg";})();
+const TB={key:"",cv:null,img:null,idx:null,X:null,Y:null,Z:null,n:0,N:0,M:0};
+function drawTexture(ctx,c,r,w,h){
+ // buffer resolution: device pixels, capped so spinning stays smooth on phones
+ const cap=window.innerWidth<700?420:560,N=Math.max(64,Math.min(cap,Math.round(w*G.dpr))),s=N/w,M=Math.round(h*s);
+ const key=[N,M,c,r].join(",");
+ if(TB.key!==key){TB.key=key;TB.N=N;TB.M=M;TB.cv=TB.cv||document.createElement("canvas");TB.cv.width=N;TB.cv.height=M;
+  TB.img=new ImageData(N,M);const idx=[],X=[],Y=[],Z=[];
+  for(let j=0;j<M;j++){const dy=((j+.5)/s-c)/r;for(let i=0;i<N;i++){const dx=((i+.5)/s-c)/r,d2=dx*dx+dy*dy;if(d2<=1){idx.push((j*N+i)*4);X.push(dx);Y.push(-dy);Z.push(Math.sqrt(1-d2))}}}
+  TB.idx=Int32Array.from(idx);TB.X=Float32Array.from(X);TB.Y=Float32Array.from(Y);TB.Z=Float32Array.from(Z);TB.n=idx.length}
+ const D=Math.PI/180,lam=G.rot[0]*D,ph=G.rot[1]*D,cp=Math.cos(ph),sp=Math.sin(ph);
+ const out=TB.img.data,T=TEX.data,tw=TEX.w,th=TEX.h,I=TB.idx,X=TB.X,Y=TB.Y,Z=TB.Z,TAU=Math.PI*2;
+ for(let k=0,n=TB.n;k<n;k++){
+  const xp=Z[k],yp=X[k],zp=Y[k];               // rotated frame: x toward viewer, y east, z north
+  const x=xp*cp+zp*sp,z=zp*cp-xp*sp;            // undo the tilt
+  let u=(Math.atan2(yp,x)-lam)/TAU+.5;u-=Math.floor(u);
+  const v=.5-Math.asin(z>1?1:z<-1?-1:z)/Math.PI;
+  const t=((Math.min(th-1,(v*th)|0)*tw)+Math.min(tw-1,(u*tw)|0))*4,o=I[k];
+  const f=.62+.38*xp;                           // gentle day-side falloff toward the limb
+  out[o]=T[t]*f;out[o+1]=T[t+1]*f;out[o+2]=T[t+2]*f;out[o+3]=255}
+ TB.cv.getContext("2d").putImageData(TB.img,0,0);
+ ctx.save();ctx.imageSmoothingEnabled=true;ctx.drawImage(TB.cv,0,0,w,h);ctx.restore();
 }
-function drawMap(){G.dirty=true}
+window.__globeDebug={TEX,TB,G,draw:()=>drawGlobe()};
+let STARS=null;
+function drawStars(ctx,w,h,c,r){
+ if(!STARS||STARS.w!==w){let seed=7;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+  STARS={w,list:Array.from({length:90},()=>({x:rnd()*w,y:rnd()*h,s:rnd()<.12?1.4:.7,a:.25+rnd()*.55}))}}
+ ctx.save();STARS.list.forEach(st=>{if(Math.hypot(st.x-c,st.y-c)<r*1.05)return;ctx.globalAlpha=st.a;ctx.fillStyle="#fff";ctx.fillRect(st.x,st.y,st.s,st.s)});ctx.restore();
+}
+
+// ---------- plane tour: fly each leg in order, pause at stopovers ----------
+const FL={on:false,playing:false,i:0,phase:"fly",t:0,hold:0,speed:1,follow:true,sig:"",lastI:-1};
+const STAY_MS={s:1700,t:700,x:900};
+const flEase=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+const flSig=()=>state.segs.map(s=>s.from+s.to+s.kind+s.stop+s.al).join("|");
+function flDur(s){const d=dist(s.from,s.to);return s.kind==="x"?Math.max(1200,Math.min(2600,900+d*1.4)):Math.max(1700,Math.min(5600,1200+d*.42))}
+function flPos(){const s=state.segs[FL.i];if(!s||!AP[s.from]||!AP[s.to])return null;const A=AP[s.from],B=AP[s.to];
+ return d3.geoInterpolate([A.lon,A.lat],[B.lon,B.lat])(FL.phase==="fly"?flEase(FL.t):1)}
+function flReady(){return state.segs.length&&state.segs.every(s=>s.from&&s.to&&AP[s.from]&&AP[s.to])}
+function flStart(fromStart){
+ if(!G.cv||!window.d3)return;
+ if(!flReady()){flShow();document.getElementById("flCap").textContent="先把每一段的起點和終點都填好，才能播放飛行。";return}
+ if(fromStart||!FL.on||FL.phase==="done"){FL.i=0;FL.t=0;FL.hold=0;FL.phase="fly";FL.lastI=-1;const f=state.segs[0];if(f)centerOn(f.from,700)}
+ FL.on=true;FL.playing=true;FL.follow=true;FL.sig=flSig();setSpin(false);flShow();flUI();G.dirty=true;
+}
+function flPause(){FL.playing=false;flUI()}
+function flStop(){FL.on=false;FL.playing=false;FL.phase="fly";flUI();document.getElementById("flBar").hidden=true;flMark(-1);G.dirty=true}
+function flCheck(){if(FL.on&&flSig()!==FL.sig)flStop()}
+function flShow(){document.getElementById("flBar").hidden=false}
+function flUI(){const b=document.getElementById("flyBtn");if(!b)return;
+ b.textContent=FL.playing?"⏸ 暫停":FL.on&&FL.phase!=="done"?"▶ 繼續":"✈ 播放飛行";b.setAttribute("aria-pressed",String(FL.playing));flCaption()}
+function flMark(i){document.querySelectorAll("#segs .seg").forEach((el,k)=>el.classList.toggle("flying",k===i))}
+function flCaption(){
+ const S=state.segs,n=S.length,s=S[FL.i],cap=document.getElementById("flCap");if(!cap||!s||!FL.on)return;
+ const A=AP[s.from],B=AP[s.to];
+ if(FL.phase==="done"){const tot=S.reduce((a,x)=>a+(x.kind==="f"?dist(x.from,x.to):0),0);
+  cap.innerHTML=`回到 <b>${B.zh}（${B.c}）</b>，全程 ${n} 段、飛行 ${fmt(tot)} 哩 ✓`}
+ else if(FL.phase==="fly")cap.innerHTML=`第 ${FL.i+1}/${n} 段 ${s.kind==="x"?"🚆":"✈"} <b>${A.c} → ${B.c}</b> · ${s.kind==="x"?"自己走陸路":(ALN[s.al]||"未選航空公司")} · ${fmt(dist(s.from,s.to))} 哩`;
+ else cap.innerHTML=`${s.stop==="t"?"在":"停留在"} <b>${B.zh}（${B.c}）</b>${s.stop==="t"?" 轉機":""}`;
+ const prog=(FL.i+(FL.phase==="fly"?FL.t:1))/n;document.getElementById("flProg").style.width=(Math.min(1,prog)*100)+"%";
+ if(FL.lastI!==FL.i){FL.lastI=FL.i;flMark(FL.i)}
+}
+function flStep(dt){
+ if(!FL.playing)return;const S=state.segs,s=S[FL.i];if(!s){flStop();return}
+ if(FL.phase==="fly"){FL.t+=dt*FL.speed/flDur(s);
+  if(FL.t>=1){FL.t=1;if(FL.i===S.length-1){FL.phase="done";FL.playing=false;flUI();return}FL.phase="stay";FL.hold=0;flCaption()}}
+ else if(FL.phase==="stay"){FL.hold+=dt*FL.speed;const nx=S[FL.i+1],need=nx&&nx.kind==="x"?STAY_MS.x:s.stop==="t"?STAY_MS.t:STAY_MS.s;
+  if(FL.hold>=need){FL.i++;FL.t=0;FL.phase="fly";FL.follow=true;flCaption()}}
+ if(FL.phase==="fly")flCaption();
+}
+const PLANE=[[0,-11],[1.6,-8],[1.6,-2.6],[10,2.4],[10,4.6],[1.6,2.2],[1.3,7],[4.2,9.4],[4.2,11],[0,9.9],[-4.2,11],[-4.2,9.4],[-1.3,7],[-1.6,2.2],[-10,4.6],[-10,2.4],[-1.6,-2.6],[-1.6,-8]];
+function planeShape(ctx){ctx.beginPath();PLANE.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath()}
+function drawPlane(ctx,proj,path,visible){
+ if(!FL.on)return;const s=state.segs[FL.i];if(!s||!AP[s.from]||!AP[s.to])return;
+ const A=AP[s.from],B=AP[s.to],ip=d3.geoInterpolate([A.lon,A.lat],[B.lon,B.lat]);
+ const e=FL.phase==="fly"?flEase(FL.t):1,surface=s.kind==="x";
+ // bright trail for the part of this leg already flown
+ if(e>0&&FL.phase==="fly"){const pts=[];for(let k=0;k<=28;k++)pts.push(ip(e*k/28));
+  ctx.beginPath();path({type:"LineString",coordinates:pts});ctx.setLineDash(surface?[5,5]:[]);ctx.lineWidth=surface?2.4:3;ctx.strokeStyle=css("--amber");ctx.shadowColor=css("--amber");ctx.shadowBlur=8;ctx.stroke();ctx.shadowBlur=0;ctx.setLineDash([])}
+ // pulse at the stopover / connection
+ if(FL.phase!=="fly"&&visible(B)){const xy=proj([B.lon,B.lat]);if(xy){const k=(FL.hold%1100)/1100;
+  ctx.beginPath();ctx.arc(xy[0],xy[1],6+k*16,0,Math.PI*2);ctx.strokeStyle=css(FL.phase==="done"?"--ok":"--amber");ctx.globalAlpha=1-k;ctx.lineWidth=2;ctx.stroke();ctx.globalAlpha=1}}
+ const p=ip(e);if(!visible({lon:p[0],lat:p[1]}))return;
+ const xy=proj(p);if(!xy)return;
+ const a=ip(Math.max(0,e-.01)),b=ip(Math.min(1,e+.01)),pa=proj(a),pb=proj(b);
+ const ang=pa&&pb&&(pa[0]!==pb[0]||pa[1]!==pb[1])?Math.atan2(pb[1]-pa[1],pb[0]-pa[0])+Math.PI/2:(FL.ang||0);FL.ang=ang;
+ if(surface){ctx.beginPath();ctx.arc(xy[0],xy[1],5,0,Math.PI*2);ctx.fillStyle=css("--amber");ctx.fill();ctx.lineWidth=1.5;ctx.strokeStyle=css("--ink");ctx.stroke();return}
+ const alt=FL.phase==="fly"?Math.sin(Math.PI*FL.t):0,sc=(.85+alt*.3)*Math.min(1.4,Math.max(.9,G.zoom*.9)),off=2+alt*7;
+ ctx.save();ctx.translate(xy[0]+off,xy[1]+off);ctx.rotate(ang);ctx.scale(sc,sc);planeShape(ctx);ctx.fillStyle="rgba(0,0,0,.45)";ctx.fill();ctx.restore();
+ ctx.save();ctx.translate(xy[0],xy[1]);ctx.rotate(ang);ctx.scale(sc,sc);planeShape(ctx);
+ ctx.shadowColor=css("--teal");ctx.shadowBlur=10;ctx.fillStyle=css("--ink");ctx.fill();ctx.shadowBlur=0;ctx.lineWidth=1/sc;ctx.strokeStyle=css("--globe-sea");ctx.stroke();ctx.restore();
+}
 try{const mq=matchMedia("(prefers-color-scheme: dark)");mq.addEventListener("change",()=>{G.dirty=true})}catch(e){}
 new MutationObserver(()=>{G.dirty=true}).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
 
