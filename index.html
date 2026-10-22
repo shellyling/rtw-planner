@@ -2,6 +2,8 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://script.google.com https://script.googleusercontent.com; object-src 'none'; base-uri 'self'; form-action 'none'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="description" content="新手友善的亞洲萬里通寰宇一家多航空公司獎勵機票（環球票）規劃工具：自動排行程、算里數、檢查規則。">
 <style>html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style>
@@ -380,6 +382,9 @@ body:not([data-tab="plan"]) .mini,body:not([data-tab="plan"]) header.top .chips{
 .cd-res .badge{display:inline-block;font-size:11px;padding:0 7px;border-radius:999px;background:var(--teal);color:var(--teal-ink);font-weight:700;margin-left:6px;vertical-align:2px}
 .cd-tip{font-size:13.5px;border-left:3px solid var(--amber);background:var(--bg);border-radius:0 8px 8px 0;padding:8px 10px}
 .cd-tip.good{border-left-color:var(--ok)}
+.pan-warn{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:60;width:min(440px,calc(100vw - 32px));padding:10px 14px;border-radius:10px;background:var(--bad-bg);border:1px solid var(--bad);color:var(--ink);font-size:13.5px;line-height:1.5;box-shadow:0 12px 32px -8px rgba(0,0,0,.7)}
+.pan-warn b{color:var(--bad)}
+@media (max-width:899px){.pan-warn{bottom:calc(78px + env(safe-area-inset-bottom))}}
 .cd-mine{display:flex;flex-direction:column;gap:8px}
 .cd-card{border:1px solid var(--line);border-radius:10px;background:var(--surface-2)}
 .cd-card summary{cursor:pointer;padding:10px 12px;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline}
@@ -640,7 +645,7 @@ body:not([data-tab="plan"]) .mini,body:not([data-tab="plan"]) header.top .chips{
         <ul class="ms-log" id="msLog"></ul>
       </section>
 
-      <p class="ms-foot">資料存在你的 Google 試算表，可以直接打開試算表修改。<button class="linkbtn" id="msEditCfg" type="button">修改連線設定</button></p>
+      <p class="ms-foot">資料存在你的 Google 試算表，可以直接打開試算表修改。<button class="linkbtn" id="msEditCfg" type="button">修改連線設定</button> · <button class="linkbtn" id="msForget" type="button">清除這台裝置的資料</button></p>
     </div>
   </div>
 
@@ -690,6 +695,8 @@ body:not([data-tab="plan"]) .mini,body:not([data-tab="plan"]) header.top .chips{
     </section>
   </div>
 
+  <div class="pan-warn" id="panWarn" role="alert" hidden></div>
+
   <button class="mini" id="mini" type="button" aria-label="跳到里數與規則檢查"><span><small>總飛行距離</small><b id="miniDist">0</b> 哩</span><span><small id="miniCab">商務艙</small><b id="miniMiles">–</b> 里</span><span class="st" id="miniSt"></span></button>
 
   <footer>
@@ -703,8 +710,8 @@ body:not([data-tab="plan"]) .mini,body:not([data-tab="plan"]) header.top .chips{
 <script src="data/cards.js"></script>
 <script src="data/promos.js"></script>
 <script>window.echarts={registerMap:function(n,j){window.__WORLD=j}};</script>
-<script src="https://cdn.jsdelivr.net/npm/echarts@4.9.0/map/js/world.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/d3@7.8.5/dist/d3.min.js"></script>
+<script src="data/echarts-world.js"></script>
+<script src="data/d3.min.js"></script>
 <script>
 (function(){
 "use strict";
@@ -1655,6 +1662,13 @@ const MS=(function(){
  $("msCfgCancel").addEventListener("click",()=>{showSetup(false);render()});
  $("msEditCfg").addEventListener("click",()=>{showSetup(true);$("msCfgMsg").textContent="";$("msUrl").focus()});
  $("msSync").addEventListener("click",sync);
+ // public / borrowed computer: wipe the Sheet URL, passphrase and cached records (the Sheet itself is untouched)
+ $("msForget").addEventListener("click",()=>{
+  if(!confirm("要清除這台裝置上的試算表連線（網址、密語）、點數紀錄和信用卡清單嗎？\n\n試算表裡的資料不會被刪除，之後重新輸入網址和密語就能拿回來。行程規劃不受影響。"))return;
+  try{localStorage.removeItem(KEY);localStorage.removeItem("rtw-cards-v1")}catch(e){}
+  st={url:"",key:"",records:[],settings:{},syncedAt:""};
+  location.reload();
+ });
  document.querySelectorAll('input[name="msType"]').forEach(r=>r.addEventListener("change",typeHint));
  $("msAdd").addEventListener("submit",async e=>{e.preventDefault();
   const msg=$("msAddMsg"),btn=$("msAddBtn");
@@ -1686,6 +1700,30 @@ const MS=(function(){
   saveSettings:async o=>{await api("settings",{settings:o});render();return st.settings}};
 })();
 
+// ---------- card-number guard: never keep a full credit card number anywhere on this site ----------
+// The site only needs bank / card name / 元/哩. If something that looks like a card number (13–19 digits,
+// spaces or dashes allowed, passing the Luhn check — or any 16-digit run) is typed or pasted into a text
+// field, it is replaced with "末四碼 1234" before any code reads it, so it never reaches localStorage or the Sheet.
+const PAN=(function(){
+ const RE=/(^|\D)(\d(?:[ \-–.]?\d){12,18})(?!\d)/g; // no lookbehind: older iOS Safari can't parse it
+ function luhn(d){let sum=0,alt=false;for(let i=d.length-1;i>=0;i--){let n=d.charCodeAt(i)-48;if(alt){n*=2;if(n>9)n-=9}sum+=n;alt=!alt}return sum%10===0}
+ const isPan=m=>{const d=m.replace(/\D/g,"");return d.length>=13&&d.length<=19&&(d.length===16||luhn(d))};
+ function scrub(v){if(typeof v!=="string"||!/\d{4}/.test(v.replace(/[ \-–.]/g,"")))return {v,hit:false};let hit=false;
+  const out=v.replace(RE,(all,pre,m)=>{if(!isPan(m))return all;hit=true;return pre+"末四碼 "+m.replace(/\D/g,"").slice(-4)});return {v:out,hit}}
+ let timer=null;
+ function warn(){const el=document.getElementById("panWarn");if(!el)return;
+  el.innerHTML="<b>偵測到像信用卡號的數字，已自動改成末四碼。</b>這個網站不需要卡號，也不會存完整卡號。";el.hidden=false;
+  clearTimeout(timer);timer=setTimeout(()=>{el.hidden=true},7000)}
+ const SKIP=new Set(["number","password","url","date","radio","checkbox","range","color","file","hidden"]);
+ // capture phase on document: runs before every other input handler on the page
+ document.addEventListener("input",e=>{const t=e.target;
+  if(!(t instanceof HTMLTextAreaElement||(t instanceof HTMLInputElement&&!SKIP.has(t.type))))return;
+  const r=scrub(t.value);if(!r.hit)return;t.value=r.v;try{t.setSelectionRange(r.v.length,r.v.length)}catch(_){}warn()},true);
+ // clean an object's string fields in place; returns true when something was replaced
+ function clean(obj,fields){let hit=false;if(!obj)return false;fields.forEach(f=>{const r=scrub(obj[f]);if(r.hit){obj[f]=r.v;hit=true}});return hit}
+ return {scrub,clean,warn};
+})();
+
 // ---------- my credit cards: which card earns the most Asia Miles for a purchase ----------
 const CD=(function(){
  const KEY="rtw-cards-v1";
@@ -1708,6 +1746,9 @@ const CD=(function(){
  ];
  let st={cards:[],updatedAt:""};
  try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s&&Array.isArray(s.cards))st=s}catch(e){}
+ // older data typed before the guard existed: strip anything that looks like a full card number
+ const scrubCards=()=>st.cards.reduce((h,c)=>PAN.clean(c,["bank","name","note"])||h,false);
+ let scrubbedAtLoad=scrubCards();
  let catOverride=false,pushTimer=null,entered=false;
  // each added card keeps a copy of the preset it came from, so later preset changes can be shown and applied
  const snap=p=>({rates:{...p.rates},note:p.note,name:p.name,bank:p.bank});
@@ -1729,6 +1770,7 @@ const CD=(function(){
   c.base=snap(d.p);
  }
  const persist=()=>{try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){}};
+ if(scrubbedAtLoad){st.updatedAt=new Date().toISOString();persist()}
  const uid=()=>(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2)).slice(0,12);
 
  let guessed=false;
@@ -1836,7 +1878,7 @@ const CD=(function(){
   if(!MS.configured()){setSync("存在這台裝置（連線試算表後可同步）");return}
   setSync("同步中…");
   try{const s=await MS.refresh();let remote=null;try{remote=s&&s.cards?JSON.parse(s.cards):null}catch(e){}
-   if(remote&&Array.isArray(remote.cards)&&(!st.updatedAt||remote.updatedAt>st.updatedAt)){st=remote;if(migrate())st.updatedAt=new Date().toISOString();persist();renderMine();calc();setSync("已從試算表載入")}
+   if(remote&&Array.isArray(remote.cards)&&(!st.updatedAt||remote.updatedAt>st.updatedAt)){st=remote;const dirty=scrubCards();if(migrate()||dirty)st.updatedAt=new Date().toISOString();persist();renderMine();calc();if(dirty){PAN.warn();await push()}else setSync("已從試算表載入")}
    else if(st.cards.length&&(!remote||remote.updatedAt<st.updatedAt)){await push()}
    else setSync(s&&"cards" in s?"已同步":"已連線（試算表還沒有卡片資料）")}
   catch(e){setSync("同步失敗："+e.message)}
