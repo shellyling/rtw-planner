@@ -9,8 +9,22 @@
 //   summary  活動內容（自己的話整理，不要整段複製官網文字）
 //   how      怎麼參加
 //   link     官網活動頁
-window.PROMOS_UPDATED = "2026-10-20";
+window.PROMOS_UPDATED = "2026-10-21";
 window.PROMOS = [
+  { id: "2026-tw-autumn-conversion",
+    type: "轉點加碼", title: "國泰 80 週年：台灣信用卡點數換里限時加碼",
+    markets: ["TW"], start: "2026-10-01", end: "2026-10-31",
+    cards: ["dbs-aov", "hsbc-traveller", "hsbc-traveller-signature", "hsbc-liveplus", "tsb-richart", "esun-unicard", "kgi-dual"],
+    summary: "10 月內把指定 13 家台灣發卡機構（星展、滙豐、上海商銀、中信、北富邦、華南、台新、美國運通、渣打、玉山、凱基、樂天、第一）的信用卡點數換成亞洲萬里通，每換 10,000 里加贈 800 里，沒有上限。限 10/1 前會員資料已登記台灣地址的會員，名額前 100,000 名。國泰世華的卡（含小樹點）和兩張聯名卡的基本里數不算。加贈里數 12/31 前入帳。",
+    how: "10/31 前先到官方表單登記會員號碼（登錯不能改），再於 10/1–10/31 期間完成轉點，里數須在 11/30 前入帳。",
+    link: "https://www.cathaypacific.com/cx/zh_TW/offers/current/autumn_conversion202610tw.html" },
+  { id: "2026-cub-am-fare-discount",
+    type: "機票優惠", title: "國泰世華亞萬聯名卡：官網購票折扣",
+    markets: ["TW"], start: "2026-06-30", end: "2026-12-31",
+    cards: ["cub-am-world", "cub-am-titanium", "cub-am-platinum", "cub-am-enjoy"],
+    summary: "用國泰世華亞萬聯名卡在國泰官網買台北或高雄出發的指定航點來回票有折扣：世界卡經濟／特選經濟 92 折、商務 95 折；鈦商卡 94／96 折；白金卡 95／97 折；里享卡只有經濟艙 95 折。出發期間到 2027-03-26（有不適用日），經濟艙限標準與彈性票價。",
+    how: "登入國泰會員後訂票，輸入卡別對應的優惠編號（如世界卡 CXCUBW），付款時選「新付款方法」手動輸入聯名卡號。",
+    link: "https://flights.cathaypacific.com/zh_TW/offers/cub-asia-miles-cobranded-card-offer.html" },
   { id: "2026-happy-glow-up",
     type: "累積加碼", title: "Happy Glow-Up Season 美妝保養里數加碼",
     markets: ["TW", "JP", "KR", "CN"], start: "2026-10-15", end: "2026-11-30", cards: [],
