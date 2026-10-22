@@ -12,12 +12,13 @@
 <style>
 /* Layout: flight-strip itinerary on the left, live "fare check" panel on the right; stacks on phones. */
 :root{
-  /* Palette: deep-space navy, indigo glow, lavender glass, cyan core, rose band, gold ring. */
-  --bg:#04061A; --bg-glow:#1B2489; --surface:rgba(13,17,52,.78); --surface-2:#121844; --line:#262E78;
-  --ink:#EAEBFF; --muted:#9C9FD6; --teal:#55DCF7; --teal-ink:#03061A; --amber:#F3CF73;
-  --violet:#8F84F2; --rose:#E28AC2; --lavender:#BCADE9;
-  --ok:#62E3B6; --bad:#FF7E9F; --todo:#F3CF73; --ok-bg:#0C2A38; --bad-bg:#2C0F33; --todo-bg:#2A2418;
-  --globe-sea:#070B33; --globe-sea-hi:#2C3AB8; --globe-land:#4248A8; --globe-grid:rgba(188,173,233,.10); --globe-glow:rgba(85,220,247,.38); --globe-shade:rgba(2,3,16,.58);
+  /* Palette: deep racing green & near-black base, metallic gold (bright gold to bronze) accents, burgundy and rust details. */
+  --bg:#020A07; --bg-glow:#123129; --bg-glow-2:rgba(57,5,23,.6); --surface:rgba(12,32,27,.86); --surface-2:#071812; --line:#22403A;
+  --ink:#F1ECE2; --muted:#A3AB9F; --teal:#E9C77C; --teal-ink:#020A07; --amber:#E58A5A;
+  --violet:#B8874A; --rose:#A02C4C; --lavender:#D2B47C; --gold-hi:#FFF1CC;
+  --ok:#8CC4A4; --bad:#E86C7F; --todo:#E9C77C; --ok-bg:#0E2C25; --bad-bg:#390517; --todo-bg:#2A2214;
+  --globe-sea:#01080A; --globe-sea-hi:#17342E; --globe-land:#2F5A4F; --globe-grid:rgba(233,199,124,.10); --globe-glow:rgba(184,135,74,.34); --globe-shade:rgba(1,6,4,.6); --globe-rim:rgba(240,206,140,.30);
+  --accent-glow:rgba(233,199,124,.5); --hairline:rgba(233,199,124,.08); --sheen:rgba(255,241,204,.55); --ambient:rgba(240,204,130,.13);
   --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
   --f-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
   --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
@@ -25,17 +26,22 @@
 }
 /* Single dark look for every viewer, whatever the app or system theme. */
 :root,:root[data-theme]{color-scheme:dark}
-html{background:#04061A}
+html{background:var(--bg)}
+/* Page light lives on fixed layers (no full repaint on scroll): a static green/burgundy wash, plus a soft gold glow that drifts as you scroll. */
+body::before{content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;
+  background:radial-gradient(1100px 620px at 50% -180px,var(--bg-glow),transparent 70%) no-repeat,radial-gradient(900px 520px at 105% 115%,var(--bg-glow-2),transparent 70%) no-repeat}
+body::after{content:"";position:fixed;left:-30vw;top:-30vh;width:160vw;height:160vh;z-index:-1;pointer-events:none;
+  background:radial-gradient(closest-side,var(--ambient),transparent 72%) center/70vmax 70vmax no-repeat;transform:translate(-18vw,-22vh)}
 
 *{box-sizing:border-box}
-body{background:var(--bg) radial-gradient(1100px 620px at 50% -180px,var(--bg-glow),transparent 70%) no-repeat;background-attachment:fixed;color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6;
+body{background:transparent;color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
 .wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
 button,select,input{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--teal);outline-offset:2px}
 
 header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
-.brand h1{background:linear-gradient(90deg,var(--ink) 30%,var(--lavender) 70%,var(--teal));-webkit-background-clip:text;background-clip:text;color:transparent;font-family:var(--f-display);font-weight:700;font-size:clamp(28px,4vw,38px);letter-spacing:.02em;margin:0;line-height:1.05}
+.brand h1{background:linear-gradient(100deg,var(--ink) 0%,var(--teal) calc(var(--gp) - 16%),var(--gold-hi) var(--gp),var(--teal) calc(var(--gp) + 16%),var(--violet) 100%);-webkit-background-clip:text;background-clip:text;color:transparent;font-family:var(--f-display);font-weight:700;font-size:clamp(28px,4vw,38px);letter-spacing:.02em;margin:0;line-height:1.05}
 .brand p{margin:4px 0 0;color:var(--muted);max-width:60ch;font-size:14px}
 .brand .tag{display:inline-block;font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
 
@@ -47,22 +53,31 @@ header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:spac
 .grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:18px;align-items:start}
 @media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}.howto{grid-template-columns:minmax(0,1fr)}}
 
-.panel{background:var(--surface);border:1px solid var(--line);box-shadow:inset 0 1px 0 rgba(188,173,233,.08),0 18px 40px -24px rgba(0,0,0,.8);backdrop-filter:blur(6px);border-radius:14px;padding:16px;min-width:0}
+.panel{background:var(--surface);border:1px solid var(--line);box-shadow:inset 0 1px 0 var(--hairline),0 18px 40px -24px rgba(0,0,0,.8);border-radius:14px;padding:16px;min-width:0}
 .panel h2{font-size:15px;margin:0;font-weight:700;letter-spacing:.02em}
 .panel-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
 .chips{display:flex;gap:6px;flex-wrap:wrap}
 .btn{border:1px solid var(--line);background:var(--surface-2);border-radius:999px;padding:5px 12px;font-size:13px;cursor:pointer}
 .btn:hover{border-color:var(--teal)}
-.btn.primary{background:linear-gradient(90deg,var(--teal),var(--violet));color:var(--teal-ink);border-color:transparent;font-weight:700;box-shadow:0 0 18px -4px var(--teal)}
+.btn.primary{background:linear-gradient(100deg,transparent calc(var(--gp) - 16%),var(--sheen) var(--gp),transparent calc(var(--gp) + 16%)),linear-gradient(90deg,var(--teal),var(--violet));color:var(--teal-ink);border-color:transparent;font-weight:700;box-shadow:0 0 18px -4px var(--teal)}
 .btn.ghost{background:transparent}
 
 /* flight strips */
 .segs{display:flex;flex-direction:column;gap:10px}
 .seg{border:1px solid var(--line);border-radius:var(--r);background:var(--surface-2);display:grid;grid-template-columns:38px minmax(0,1fr);overflow:visible;position:relative}
 .seg.surface{border-style:dashed}
-.seg .no{background:linear-gradient(180deg,var(--teal),var(--violet));color:var(--teal-ink);font-family:var(--f-display);font-weight:700;font-size:20px;display:flex;flex-direction:column;gap:4px;align-items:center;justify-content:center;border-radius:var(--r) 0 0 var(--r);border:0;padding:0;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+.seg .no{background:linear-gradient(170deg,transparent calc(var(--gp) - 18%),var(--sheen) var(--gp),transparent calc(var(--gp) + 18%)),linear-gradient(180deg,var(--teal),var(--violet));color:var(--teal-ink);font-family:var(--f-display);font-weight:700;font-size:20px;display:flex;flex-direction:column;gap:4px;align-items:center;justify-content:center;border-radius:var(--r) 0 0 var(--r);border:0;padding:0;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
 .seg .no:active{cursor:grabbing}
-.seg .no .grip{font-size:13px;letter-spacing:-2px;opacity:.7;line-height:1}
+/* drag grip: a small tab on the card's right edge, shown only when a mouse hovers the card (touch keeps dragging by the number strip) */
+.seg .grip{position:absolute;right:-10px;top:50%;transform:translate(4px,-50%);z-index:2;display:none;align-items:center;justify-content:center;width:20px;height:40px;
+  border-radius:999px;background:var(--surface-2);border:1px solid color-mix(in srgb,var(--teal) 55%,var(--line));color:var(--teal);
+  font-size:13px;letter-spacing:-2px;line-height:1;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;opacity:0;transition:opacity .15s ease,transform .15s ease}
+.seg .grip:active{cursor:grabbing}
+@media (hover:hover) and (pointer:fine){
+  .seg .grip{display:flex}
+  .seg:hover .grip,.seg.dragging .grip{opacity:1;transform:translate(0,-50%)}
+  .seg .grip:hover{background:var(--teal);color:var(--teal-ink)}
+}
 .seg .no:focus-visible{outline:2px solid var(--ink);outline-offset:-4px}
 .seg{transition:transform .18s ease}
 .seg.flying{box-shadow:0 0 0 1px var(--amber),0 0 22px -6px var(--amber)}
@@ -197,8 +212,18 @@ footer a{color:var(--teal)}
   .mini .st.ok{background:var(--ok)}.mini .st.bad{background:var(--bad)}.mini .st.todo{background:var(--todo)}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+/* Scroll-linked light. Only transform (ambient glow) and a non-inherited gradient position on a few small gold elements animate,
+   so scrolling stays smooth; browsers without scroll-driven animations just show the light at rest. */
+@property --gp{syntax:"<percentage>";inherits:false;initial-value:-30%}
+@keyframes ambientDrift{from{transform:translate(-22vw,-28vh)}50%{transform:translate(24vw,6vh)}to{transform:translate(-10vw,30vh)}}
+@keyframes sheenSweep{from{--gp:-30%}to{--gp:130%}}
+@supports (animation-timeline:scroll()){@media (prefers-reduced-motion:no-preference){
+  body::after{animation:ambientDrift linear both;animation-timeline:scroll(root);will-change:transform}
+  .brand h1{animation:sheenSweep linear both;animation-timeline:scroll(root);animation-range:0 700px}
+  .btn.primary,.seg .no{animation:sheenSweep linear both;animation-timeline:view();animation-range:cover}
+}}
 /* quick planner: type a list of countries, get a suggested itinerary */
-.planner{display:flex;flex-direction:column;gap:12px;border-color:color-mix(in srgb,var(--teal) 45%,var(--line));box-shadow:inset 0 1px 0 rgba(188,173,233,.08),0 0 40px -18px var(--teal)}
+.planner{display:flex;flex-direction:column;gap:12px;border-color:color-mix(in srgb,var(--teal) 45%,var(--line));box-shadow:inset 0 1px 0 var(--hairline),0 0 40px -18px var(--teal)}
 .planner .lead{margin:0;color:var(--muted);font-size:13.5px}
 .qrow{display:grid;grid-template-columns:minmax(0,1fr) 150px auto;gap:10px;align-items:end}
 .qrow label{display:block;font-size:11px;color:var(--muted);letter-spacing:.06em;margin-bottom:3px}
@@ -242,7 +267,7 @@ footer a{color:var(--teal)}
 .plan-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .plan-actions small{color:var(--muted);font-size:12px}
 .plan h4{margin:0;font-size:13.5px;color:var(--lavender);letter-spacing:.04em}
-.plan-nums .cur b{color:var(--teal);text-shadow:0 0 12px rgba(85,220,247,.5)}
+.plan-nums .cur b{color:var(--teal);text-shadow:0 0 12px var(--accent-glow)}
 .chk-lead{margin:0 0 10px;color:var(--muted);font-size:13.5px}
 .chk{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
 .chk li{display:grid;grid-template-columns:24px minmax(0,1fr) auto auto;gap:6px 12px;align-items:center;padding:8px 10px;border-radius:8px;background:var(--surface-2);border:1px solid var(--line)}
@@ -255,7 +280,8 @@ footer a{color:var(--teal)}
 .chk .ci small{display:block;color:var(--muted);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chk input[type=date]{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:4px 6px;font-size:13px;color-scheme:dark}
 .chk .seg-toggle input:checked+label.u{background:var(--line);color:var(--ink)}
-a.btn{text-decoration:none;display:inline-block}
+a{color:var(--teal)}
+a.btn{text-decoration:none;display:inline-block;color:var(--ink)}
 .chk .seg-toggle{justify-self:start}
 .chk .seg-toggle input:checked+label.y{background:var(--ok)}
 .chk .seg-toggle input:checked+label.x{background:var(--bad)}
@@ -266,7 +292,7 @@ a.btn{text-decoration:none;display:inline-block}
 .tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--line);margin-top:-4px}
 .tabs button{white-space:nowrap;flex:none;border:0;background:transparent;color:var(--muted);font-size:15px;font-weight:700;padding:10px 16px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
 .tabs button:hover{color:var(--ink)}
-.tabs button[aria-selected="true"]{color:var(--teal);border-bottom-color:var(--teal);text-shadow:0 0 14px rgba(85,220,247,.45)}
+.tabs button[aria-selected="true"]{color:var(--teal);border-bottom-color:var(--teal);text-shadow:0 0 14px var(--accent-glow)}
 .tabpanel{display:flex;flex-direction:column;gap:18px}
 .tabpanel[hidden]{display:none!important}
 body:not([data-tab="plan"]) .mini,body:not([data-tab="plan"]) header.top .chips{display:none!important}
@@ -380,7 +406,7 @@ body:not([data-tab="plan"]) .mini,body:not([data-tab="plan"]) header.top .chips{
 .cd-upd .nt{font-size:12.5px;color:var(--muted)}
 .cd-empty{color:var(--muted);font-size:13.5px;margin:0}
 /* promotions tab */
-.tab-badge{display:inline-block;min-width:18px;height:18px;line-height:18px;padding:0 5px;border-radius:999px;background:var(--rose);color:var(--teal-ink);font-size:11.5px;font-weight:700;margin-left:6px;vertical-align:2px;text-shadow:none}
+.tab-badge{display:inline-block;min-width:18px;height:18px;line-height:18px;padding:0 5px;border-radius:999px;background:var(--rose);color:var(--ink);font-size:11.5px;font-weight:700;margin-left:6px;vertical-align:2px;text-shadow:none}
 .tab-badge[hidden]{display:none}
 .pr-strip{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;padding:8px 12px;border-radius:10px;border:1px solid color-mix(in srgb,var(--rose) 60%,var(--line));background:var(--bad-bg);font-size:13.5px}
 .pr-strip[hidden]{display:none}
@@ -398,7 +424,7 @@ body:not([data-tab="plan"]) .mini,body:not([data-tab="plan"]) header.top .chips{
 .pr-how b{color:var(--ink);font-weight:600}
 .pr-top{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;font-size:12px}
 .pr-type{padding:1px 8px;border-radius:999px;background:var(--bg);border:1px solid var(--line);color:var(--lavender)}
-.pr-new{padding:1px 8px;border-radius:999px;background:var(--rose);color:var(--teal-ink);font-weight:700}
+.pr-new{padding:1px 8px;border-radius:999px;background:var(--rose);color:var(--ink);font-weight:700}
 .pr-st{padding:1px 8px;border-radius:999px;background:var(--ok-bg);color:var(--ok)}
 .pr-st.ending{background:var(--bad-bg);color:var(--bad);font-weight:700}
 .pr-st.soon{background:var(--todo-bg);color:var(--todo)}
@@ -838,7 +864,7 @@ function renderSegs(){
   const last=i===S.length-1;
   const d=s.from&&s.to?dist(s.from,s.to):0;
   el.dataset.i=i;
-  el.innerHTML=`<button class="no" type="button" data-handle="${i}" aria-label="第 ${i+1} 段，拖曳或用上下方向鍵調整順序"><span>${i+1}</span><span class="grip" aria-hidden="true">⋮⋮</span></button><div class="body">
+  el.innerHTML=`<button class="no" type="button" data-handle="${i}" aria-label="第 ${i+1} 段，拖曳或用上下方向鍵調整順序"><span>${i+1}</span></button><span class="grip" data-handle="${i}" aria-hidden="true" title="拖曳調整順序">⋮⋮</span><div class="body">
    <div class="route"><div class="slot-from"></div><span class="arrow" aria-hidden="true">${s.kind==="x"?"⇢":"→"}</span><div class="slot-to"></div></div>
    <div class="meta">
      ${s.kind==="f"?`<label class="sr" for="al-${i}" style="font-size:12px;color:var(--muted)">航空</label><select class="al" id="al-${i}">${alOptions(s)}</select>`:`<span style="font-size:13px">自己走陸路（不搭飛機）</span>`}
@@ -1059,10 +1085,19 @@ function drawGlobe(){
  ctx.setTransform(G.dpr,0,0,G.dpr,0,0);ctx.clearRect(0,0,w,h);
  if(G.mode==="flat"){
   const proj=flatProj(),path=d3.geoPath(proj,ctx);
+  drawStars(ctx,w,h,-1e9,0);
+  // atmosphere glow hugging the map outline, same colors as the 3D globe
+  ctx.save();ctx.beginPath();path({type:"Sphere"});ctx.shadowColor=css("--globe-glow");ctx.shadowBlur=26;ctx.fillStyle=css("--globe-sea");ctx.fill();ctx.restore();
   const sea=ctx.createLinearGradient(0,0,0,h);sea.addColorStop(0,css("--globe-sea-hi"));sea.addColorStop(1,css("--globe-sea"));
   ctx.beginPath();path({type:"Sphere"});ctx.fillStyle=sea;ctx.fill();
-  ctx.beginPath();path(d3.geoGraticule10());ctx.strokeStyle=css("--globe-grid");ctx.lineWidth=.6;ctx.stroke();
-  ctx.beginPath();G.land.features.forEach(f=>path(f));ctx.fillStyle=css("--globe-land");ctx.fill();
+  if(TEX.data){drawFlatTexture(ctx,proj,w,h);ctx.globalAlpha=.45}
+  else{ctx.beginPath();G.land.features.forEach(f=>path(f));ctx.fillStyle=css("--globe-land");ctx.fill()}
+  ctx.beginPath();path(d3.geoGraticule10());ctx.strokeStyle=css("--globe-grid");ctx.lineWidth=.6;ctx.stroke();ctx.globalAlpha=1;
+  // soft darkening toward the edges, then a thin bright rim
+  const sb=d3.geoPath(proj).bounds({type:"Sphere"}),cx=(sb[0][0]+sb[1][0])/2,cy=(sb[0][1]+sb[1][1])/2,rr=Math.max(sb[1][0]-sb[0][0],sb[1][1]-sb[0][1])/2;
+  const shade=ctx.createRadialGradient(cx,cy,rr*.35,cx,cy,rr*1.02);shade.addColorStop(0,"rgba(0,0,0,0)");shade.addColorStop(1,css("--globe-shade"));
+  ctx.globalAlpha=TEX.data?.5:1;ctx.beginPath();path({type:"Sphere"});ctx.fillStyle=shade;ctx.fill();ctx.globalAlpha=1;
+  ctx.save();ctx.beginPath();path({type:"Sphere"});ctx.lineWidth=2.2;ctx.strokeStyle=css("--globe-rim");ctx.shadowColor=css("--globe-rim");ctx.shadowBlur=8;ctx.stroke();ctx.restore();
   ctx.beginPath();path({type:"Sphere"});ctx.lineWidth=1;ctx.strokeStyle=css("--lavender");ctx.globalAlpha=.35;ctx.stroke();ctx.globalAlpha=1;
   drawRoutesAndLabels(ctx,proj,path,()=>true);return}
  const c=w/2,r=w*0.4*G.zoom;
@@ -1079,7 +1114,7 @@ function drawGlobe(){
  const shade=ctx.createRadialGradient(c-r*.3,c-r*.35,r*.3,c,c,r*1.02);shade.addColorStop(0,"rgba(0,0,0,0)");shade.addColorStop(1,css("--globe-shade"));
  ctx.globalAlpha=TEX.data?.55:1;ctx.beginPath();path({type:"Sphere"});ctx.fillStyle=shade;ctx.fill();ctx.globalAlpha=1;
  // thin bright atmosphere rim
- const rim=ctx.createRadialGradient(c,c,r*.9,c,c,r*1.035);rim.addColorStop(0,"rgba(85,220,247,0)");rim.addColorStop(.82,"rgba(110,200,255,.28)");rim.addColorStop(1,"rgba(110,200,255,0)");
+ const rim=ctx.createRadialGradient(c,c,r*.9,c,c,r*1.035);rim.addColorStop(0,"rgba(0,0,0,0)");rim.addColorStop(.82,css("--globe-rim"));rim.addColorStop(1,"rgba(0,0,0,0)");
  ctx.beginPath();ctx.arc(c,c,r*1.035,0,Math.PI*2);ctx.fillStyle=rim;ctx.fill();
  ctx.beginPath();ctx.arc(c,c,r,0,Math.PI*2);ctx.lineWidth=1.2;ctx.strokeStyle=css("--lavender");ctx.globalAlpha=.35;ctx.stroke();ctx.globalAlpha=1;
  const center=[-G.rot[0],-G.rot[1]];
@@ -1117,11 +1152,31 @@ function drawTexture(ctx,c,r,w,h){
  TB.cv.getContext("2d").putImageData(TB.img,0,0);
  ctx.save();ctx.imageSmoothingEnabled=true;ctx.drawImage(TB.cv,0,0,w,h);ctx.restore();
 }
-window.__globeDebug={TEX,TB,G,draw:()=>drawGlobe()};
+// Flat map: the same photo, re-projected onto Natural Earth. Each pixel's latitude and its longitude at zero pan are
+// computed once per size/zoom/vertical offset (Natural Earth is linear in longitude along each row, so one inverse per row);
+// panning sideways only shifts the longitude, so a redraw is a single cheap lookup per pixel, like the globe.
+const TF={key:"",cv:null,img:null,idx:null,L:null,R:null,n:0};
+function drawFlatTexture(ctx,proj,w,h){
+ const cap=window.innerWidth<700?520:760,N=Math.max(64,Math.min(cap,Math.round(w*G.dpr))),s=N/w,M=Math.round(h*s);
+ const key=[N,M,w,h,G.zoom,G.ty].join(",");
+ if(TF.key!==key){TF.key=key;TF.cv=TF.cv||document.createElement("canvas");TF.cv.width=N;TF.cv.height=M;TF.img=new ImageData(N,M);
+  const p0=flatProj();p0.rotate([0,0]);const idx=[],L=[],R=[],th=TEX.h;
+  for(let j=0;j<M;j++){const y=(j+.5)/s,q=p0.invert([w/2,y]);if(!q||!isFinite(q[1])||Math.abs(q[1])>90)continue;
+   const a=p0([-179.999,q[1]]),b=p0([179.999,q[1]]);if(!a||!b||Math.abs(a[1]-y)>1.5)continue;
+   const xl=a[0],xr=b[0],row=Math.min(th-1,((.5-q[1]/180)*th)|0)*TEX.w;
+   for(let i=0;i<N;i++){const x=(i+.5)/s;if(x<xl||x>xr)continue;idx.push((j*N+i)*4);L.push(-180+360*(x-xl)/(xr-xl));R.push(row)}}
+  TF.idx=Int32Array.from(idx);TF.L=Float32Array.from(L);TF.R=Int32Array.from(R);TF.n=idx.length}
+ const out=TF.img.data,T=TEX.data,tw=TEX.w,I=TF.idx,L=TF.L,R=TF.R,rot=G.rot[0];
+ for(let k=0,n=TF.n;k<n;k++){let u=(L[k]-rot+180)/360;u-=Math.floor(u);const t=(R[k]+Math.min(tw-1,(u*tw)|0))*4,o=I[k];
+  out[o]=T[t]*.9;out[o+1]=T[t+1]*.9;out[o+2]=T[t+2]*.9;out[o+3]=255}
+ TF.cv.getContext("2d").putImageData(TF.img,0,0);
+ ctx.save();ctx.imageSmoothingEnabled=true;ctx.drawImage(TF.cv,0,0,w,h);ctx.restore();
+}
+window.__globeDebug={TEX,TB,TF,G,draw:()=>drawGlobe()};
 let STARS=null;
 function drawStars(ctx,w,h,c,r){
- if(!STARS||STARS.w!==w){let seed=7;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
-  STARS={w,list:Array.from({length:90},()=>({x:rnd()*w,y:rnd()*h,s:rnd()<.12?1.4:.7,a:.25+rnd()*.55}))}}
+ if(!STARS||STARS.w!==w||STARS.h!==h){let seed=7;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+  STARS={w,h,list:Array.from({length:90},()=>({x:rnd()*w,y:rnd()*h,s:rnd()<.12?1.4:.7,a:.25+rnd()*.55}))}}
  ctx.save();STARS.list.forEach(st=>{if(Math.hypot(st.x-c,st.y-c)<r*1.05)return;ctx.globalAlpha=st.a;ctx.fillStyle="#fff";ctx.fillRect(st.x,st.y,st.s,st.s)});ctx.restore();
 }
 
